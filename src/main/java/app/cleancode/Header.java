@@ -72,6 +72,9 @@ public record Header(String className, List<Pair<String, String>> instanceFields
             result.append(field.a()).append(" ").append(field.b()).append(";\n");
         });
         result.append("};\n");
+        result.append("/*Static fields*/\n");
+        staticFields.forEach(field -> result.append("extern ").append(field.a()).append(" ")
+                .append(field.b()).append(";\n"));
         result.append("/*Method declarations*/\n");
         methods.forEach(method -> result.append(method.toString()).append(";\n"));
 

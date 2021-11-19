@@ -8,6 +8,7 @@ public class Main {
         ClassNode root = new ClassNode();
         ClassReader reader = new ClassReader(Main.class.getName());
         reader.accept(root, 0);
-
+        Header header = Header.from(root);
+        System.out.println(header);
     }
 }

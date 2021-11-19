@@ -3,4 +3,24 @@
   <groupId>app.cleancode</groupId>
   <artifactId>java-native-compiler</artifactId>
   <version>0.0.1-SNAPSHOT</version>
+  
+  <properties>
+  <java.version>16</java.version>
+  <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+  
+  <build>
+  <plugins>
+  <plugin>
+  <groupId>org.apache.maven.plugins</groupId>
+  <artifactId>maven-compiler-plugin</artifactId>
+  <version>3.8.1</version>
+  <configuration>
+  <target>${java.version}</target>
+  <source>${java.version}</source>
+  <release>${java.version}</release>
+  </configuration>
+  </plugin>
+  </plugins>
+  </build>
 </project>

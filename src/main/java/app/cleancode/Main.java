@@ -4,7 +4,7 @@ import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.ClassNode;
 
 public class Main {
-    public String className = Main.class.getCanonicalName();
+    public static String className = Main.class.getCanonicalName();
     public int[] items;
 
     public static void main(String[] args) throws Throwable {

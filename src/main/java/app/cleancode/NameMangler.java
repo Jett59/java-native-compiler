@@ -2,7 +2,7 @@ package app.cleancode;
 
 public class NameMangler {
     public static String mangle(String name) {
-        return name.replace('/', '_').replace('.', '_');
+        return name.replace('/', '_').replace('.', '_').replace('<', '_').replace('>', '_');
     }
 
     public static String mangleType(String type) {

@@ -50,4 +50,21 @@ public record Header(String className, List<Pair<String, String>> instanceFields
         return new Header(NameMangler.mangle(classNode.name), instanceFields, staticFields, methods,
                 dependentHeaders);
     }
+
+    @Override
+    public String toString() {
+        StringBuilder result = new StringBuilder();
+        result.append(
+                "/*Compiled by the java to native compiler <https://github.com/Jett59/java-native-compiler>*/\n");
+        result.append("/*Only modify if you really know what you are doing*/\n\n");
+        result.append("#ifndef ___JAVA_").append(className).append("\n");
+        result.append("#define ___JAVA_").append(className).append("  1\n\n");
+
+        result.append("#include <stdint.h>\n").append("#include <stdbool.h>\n");
+        dependentHeaders
+                .forEach(header -> result.append("#include \"").append(header).append(".h\"\n"));
+
+        result.append("#endif");
+        return result.toString();
+    }
 }

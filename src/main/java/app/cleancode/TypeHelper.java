@@ -27,6 +27,7 @@ public class TypeHelper {
         String actualTypeName = getActualType(descriptor);
         StringBuilder result = new StringBuilder();
         if (isReference) {
+            result.append("struct ");
             result.append(NameMangler.mangle(actualTypeName));
             result.append("*");
         } else {

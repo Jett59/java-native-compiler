@@ -17,10 +17,12 @@ public record Header(String className, List<Pair<String, String>> instanceFields
         List<Pair<String, String>> instanceFields = new ArrayList<>(),
                 staticFields = new ArrayList<>();
         classNode.fields.forEach(field -> {
+            boolean isStatic = (field.access & Opcodes.ACC_STATIC) != 0;
             Pair<String, String> fieldDescriptor =
                     new Pair<>(TypeHelper.getCStyleTypeName(field.desc),
-                            NameMangler.mangle(classNode.name, field.name, field.desc));
-            if ((field.access & Opcodes.ACC_STATIC) == 0) { // Instance field
+                            isStatic ? NameMangler.mangle(classNode.name, field.name, field.desc)
+                                    : NameMangler.mangle(field.name));
+            if (!isStatic) {
                 instanceFields.add(fieldDescriptor);
             } else {
                 staticFields.add(fieldDescriptor);
@@ -63,6 +65,12 @@ public record Header(String className, List<Pair<String, String>> instanceFields
         result.append("#include <stdint.h>\n").append("#include <stdbool.h>\n");
         dependentHeaders
                 .forEach(header -> result.append("#include \"").append(header).append(".h\"\n"));
+
+        result.append("struct ").append(className).append(" {\n");
+        instanceFields.forEach(field -> {
+            result.append(field.a()).append(" ").append(field.b()).append(";\n");
+        });
+        result.append("};\n");
 
         result.append("#endif");
         return result.toString();

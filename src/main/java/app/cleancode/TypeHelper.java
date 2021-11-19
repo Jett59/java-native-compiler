@@ -71,7 +71,7 @@ public class TypeHelper {
             }
         }
         if (isArray) {
-            result.append("[]");
+            result.append("*");
         }
         return result.toString();
     }

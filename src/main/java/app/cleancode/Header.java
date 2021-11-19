@@ -66,13 +66,14 @@ public record Header(String className, List<Pair<String, String>> instanceFields
         dependentHeaders
                 .forEach(header -> result.append("#include \"").append(header).append(".h\"\n"));
 
+        result.append("/*Class definition*/\n");
         result.append("struct ").append(className).append(" {\n");
         instanceFields.forEach(field -> {
             result.append(field.a()).append(" ").append(field.b()).append(";\n");
         });
         result.append("};\n");
 
-        result.append("#endif");
+        result.append("\n#endif");
         return result.toString();
     }
 }

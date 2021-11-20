@@ -24,29 +24,32 @@ public record Header(String className, List<Pair<String, String>> instanceFields
                                     : NameMangler.mangle(field.name));
             if (!isStatic) {
                 instanceFields.add(fieldDescriptor);
-            } else {
+            } else if ((field.access & Opcodes.ACC_PRIVATE) == 0) {
                 staticFields.add(fieldDescriptor);
             }
             dependentHeaders.add(TypeHelper.getActualType(field.desc));
         });
         List<MethodDescriptor> methods = new ArrayList<>();
         classNode.methods.forEach(method -> {
-            List<String> parameterTuypeNames =
-                    new ArrayList<>(Arrays.stream(Type.getArgumentTypes(method.desc))
-                            .map(Type::getDescriptor).map(TypeHelper::getCStyleTypeName).toList());
-            if ((method.access & Opcodes.ACC_STATIC) == 0) {
-                parameterTuypeNames.add(0,
-                        TypeHelper.getCStyleTypeName('L' + classNode.name + ';'));
+            if ((method.access & Opcodes.ACC_PRIVATE) == 0) {
+                List<String> parameterTuypeNames = new ArrayList<>(
+                        Arrays.stream(Type.getArgumentTypes(method.desc)).map(Type::getDescriptor)
+                                .map(TypeHelper::getCStyleTypeName).toList());
+                if ((method.access & Opcodes.ACC_STATIC) == 0) {
+                    parameterTuypeNames.add(0,
+                            TypeHelper.getCStyleTypeName('L' + classNode.name + ';'));
+                }
+                MethodDescriptor methodDescriptor = new MethodDescriptor(
+                        TypeHelper
+                                .getCStyleTypeName(Type.getReturnType(method.desc).getDescriptor()),
+                        NameMangler.mangle(classNode.name, method.name, method.desc),
+                        parameterTuypeNames);
+                methods.add(methodDescriptor);
+                dependentHeaders.add(
+                        TypeHelper.getActualType(Type.getReturnType(method.desc).getDescriptor()));
+                Arrays.stream(Type.getArgumentTypes(method.desc)).map(Type::getDescriptor)
+                        .map(TypeHelper::getActualType).forEach(dependentHeaders::add);
             }
-            MethodDescriptor methodDescriptor = new MethodDescriptor(
-                    TypeHelper.getCStyleTypeName(Type.getReturnType(method.desc).getDescriptor()),
-                    NameMangler.mangle(classNode.name, method.name, method.desc),
-                    parameterTuypeNames);
-            methods.add(methodDescriptor);
-            dependentHeaders
-                    .add(TypeHelper.getActualType(Type.getReturnType(method.desc).getDescriptor()));
-            Arrays.stream(Type.getArgumentTypes(method.desc)).map(Type::getDescriptor)
-                    .map(TypeHelper::getActualType).forEach(dependentHeaders::add);
         });
         dependentHeaders.removeAll(List.of("V", "B", "C", "F", "D", "I", "J", "S", "Z"));
         return new Header(NameMangler.mangle(classNode.name), instanceFields, staticFields, methods,

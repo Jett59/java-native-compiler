@@ -71,7 +71,8 @@ public class TypeHelper {
             }
         }
         if (isArray) {
-            result.append("*");
+            descriptor.codePoints().filter(character -> character == '[')
+                    .forEach(character -> result.append('*'));
         }
         return result.toString();
     }

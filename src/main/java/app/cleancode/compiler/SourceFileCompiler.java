@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
@@ -15,6 +16,9 @@ import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.LineNumberNode;
+import org.objectweb.asm.tree.LocalVariableNode;
+import org.objectweb.asm.tree.MethodInsnNode;
+import org.objectweb.asm.tree.VarInsnNode;
 import app.cleancode.NameMangler;
 import app.cleancode.Pair;
 import app.cleancode.ParameterHelper;
@@ -25,6 +29,8 @@ public class SourceFileCompiler {
         SourceFile sourceFile = new SourceFile();
         classNode.methods.forEach(method -> {
             System.out.println("Doing method " + method.name);
+            List<LocalVariableNode> localVariables =
+                    method.localVariables == null ? new ArrayList<>() : method.localVariables;
             List<Pair<String, String>> methodParameters = new ArrayList<>();
             List<String> methodParameterTypes = ParameterHelper.getParameterTypeNames(
                     classNode.name, method.desc, (method.access & Opcodes.ACC_STATIC) == 0);
@@ -86,7 +92,7 @@ public class SourceFileCompiler {
                             FieldInsnNode fieldInstruction = (FieldInsnNode) instruction;
                             sourceFile.dependentHeaders
                                     .add(TypeHelper.getActualType(fieldInstruction.desc));
-                            String sourceVariable = "tmp" + sourceMethod.variables.size();
+                            String sourceVariable = getTmpVariableName(sourceMethod.variables);
                             sourceMethod.actions.add(
                                     new PutAction(sourceVariable, NameMangler.mangle(classNode.name,
                                             fieldInstruction.name, fieldInstruction.desc)));
@@ -98,6 +104,38 @@ public class SourceFileCompiler {
                         }
                         case Opcodes.RETURN: {
                             sourceMethod.actions.add(new ArglessReturnAction());
+                            break;
+                        }
+                        case Opcodes.ALOAD: {
+                            VarInsnNode variableInstruction = (VarInsnNode) instruction;
+                            List<String> outputs = new ArrayList<>();
+                            sourceMethod.actions.add(new LoadLocalAction(
+                                    localVariables.get(variableInstruction.var).name, outputs));
+                            operandStack.push(outputs);
+                            break;
+                        }
+                        case Opcodes.INVOKESPECIAL: {
+                            MethodInsnNode methodInstruction = (MethodInsnNode) instruction;
+                            List<String> parameterTypes = ParameterHelper.getParameterTypeNames(
+                                    methodInstruction.owner, methodInstruction.desc,
+                                    (method.access & Opcodes.ACC_STATIC) == 0);
+                            List<String> outputs = new ArrayList<>();
+                            List<Pair<String, String>> inputVariables =
+                                    IntStream.range(0, parameterTypes.size())
+                                            .mapToObj(n -> new Pair<>(parameterTypes.get(n),
+                                                    getTmpVariableName(sourceMethod.variables)))
+                                            .toList();
+                            sourceMethod.actions.add(new CallAction(
+                                    NameMangler.mangle(methodInstruction.owner,
+                                            methodInstruction.name, methodInstruction.desc),
+                                    inputVariables.stream().map(Pair::b).toList(), outputs));
+                            sourceMethod.variables.addAll(inputVariables);
+                            for (int j = inputVariables.size() - 1; j >= 0; j--) {
+                                operandStack.pop(inputVariables.get(j).b());
+                            }
+                            if (Type.getReturnType(methodInstruction.desc).getSort() != Type.VOID) {
+                                operandStack.push(outputs);
+                            }
                             break;
                         }
                         default:
@@ -134,6 +172,10 @@ public class SourceFileCompiler {
             labelOperandStacks.put(labelName, operandStack);
             return operandStack;
         }
+    }
+
+    private static String getTmpVariableName(List<Pair<String, String>> variables) {
+        return "_internal_tmp_" + variables.size();
     }
 
     public static String getVariableType(Object obj) {

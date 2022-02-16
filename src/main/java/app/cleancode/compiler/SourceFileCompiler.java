@@ -87,8 +87,9 @@ public class SourceFileCompiler {
                             sourceFile.dependentHeaders
                                     .add(TypeHelper.getActualType(fieldInstruction.desc));
                             String sourceVariable = "tmp" + sourceMethod.variables.size();
-                            sourceMethod.actions.add(new PutAction(sourceVariable, NameMangler
-                                    .mangle(classNode.name, method.name, fieldInstruction.name)));
+                            sourceMethod.actions.add(
+                                    new PutAction(sourceVariable, NameMangler.mangle(classNode.name,
+                                            fieldInstruction.name, fieldInstruction.desc)));
                             operandStack.pop(sourceVariable);
                             sourceMethod.variables.add(
                                     new Pair<>(TypeHelper.getCStyleTypeName(fieldInstruction.desc),

@@ -9,8 +9,4 @@ public class Test {
     public static int main(int argc, char[][] argv) {
         return 0;
     }
-
-    private static int main(long argc, byte[][] argv) {
-        return 0;
-    }
 }

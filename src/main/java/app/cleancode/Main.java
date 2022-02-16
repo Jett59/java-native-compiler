@@ -5,11 +5,10 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.ClassNode;
+import app.cleancode.compiler.SourceFile;
+import app.cleancode.compiler.SourceFileCompiler;
 
 public class Main {
-    public static String className = Main.class.getCanonicalName();
-    public int[] items;
-
     public static void main(String[] args) throws Throwable {
         Options options = Options.get(args);
         for (String file : options.inputFiles()) {
@@ -20,6 +19,8 @@ public class Main {
             File headerOutputFile = Paths.get(options.outputDirectory(), root.name + ".h").toFile();
             headerOutputFile.getParentFile().mkdirs();
             Files.write(headerOutputFile.toPath(), header.toString().getBytes());
+            SourceFile sourceFile = SourceFileCompiler.getSourceFile(root);
+            System.out.println(sourceFile);
         }
     }
 }

@@ -13,6 +13,8 @@ import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
+import org.objectweb.asm.tree.FrameNode;
+import org.objectweb.asm.tree.IincInsnNode;
 import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.LdcInsnNode;
@@ -44,6 +46,11 @@ public class SourceFileCompiler {
                     TypeHelper.getCStyleTypeName(Type.getReturnType(method.desc).getDescriptor()),
                     NameMangler.mangle(classNode.name, method.name, method.desc), methodParameters);
             Map<Label, String> labelNames = new HashMap<>();
+            for (int i = methodParameterTypes.size(); i < localVariables.size(); i++) {
+                LocalVariableNode localVariable = localVariables.get(i);
+                sourceMethod.variables.add(new Pair<String, String>(
+                        TypeHelper.getCStyleTypeName(localVariable.desc), localVariable.name));
+            }
             AtomicInteger numLabels = new AtomicInteger();
             OperandStack operandStack = new OperandStack();
             Map<String, OperandStack> labelOperandStacks = new HashMap<>();
@@ -62,6 +69,8 @@ public class SourceFileCompiler {
                 } else if (instruction.getType() == LineNumberNode.LINE) {
                     LineNumberNode lineNumber = (LineNumberNode) instruction;
                     sourceMethod.actions.add(new LineNumberAction(lineNumber.line));
+                } else if (instruction.getType() == FrameNode.FRAME) {
+                    // Do nothing for now
                 } else {
                     switch (instruction.getOpcode()) {
                         case Opcodes.GOTO: {
@@ -78,49 +87,49 @@ public class SourceFileCompiler {
                             List<String> ldcOutputs = new ArrayList<>();
                             sourceMethod.actions
                                     .add(new LoadConstantAction(ldcInstruction.cst, ldcOutputs));
-                            operandStack.push(ldcOutputs);
+                            operandStack.push(ldcOutputs, getVariableType(ldcInstruction.cst));
                             break;
                         }
                         case Opcodes.ICONST_M1: {
                             List<String> outputs = new ArrayList<>();
                             sourceMethod.actions.add(new LoadConstantAction(-1, outputs));
-                            operandStack.push(outputs);
+                            operandStack.push(outputs, "int32_t");
                             break;
                         }
                         case Opcodes.ICONST_0: {
                             List<String> outputs = new ArrayList<>();
                             sourceMethod.actions.add(new LoadConstantAction(0, outputs));
-                            operandStack.push(outputs);
+                            operandStack.push(outputs, "int32_t");
                             break;
                         }
                         case Opcodes.ICONST_1: {
                             List<String> outputs = new ArrayList<>();
                             sourceMethod.actions.add(new LoadConstantAction(1, outputs));
-                            operandStack.push(outputs);
+                            operandStack.push(outputs, "int32_t");
                             break;
                         }
                         case Opcodes.ICONST_2: {
                             List<String> outputs = new ArrayList<>();
                             sourceMethod.actions.add(new LoadConstantAction(2, outputs));
-                            operandStack.push(outputs);
+                            operandStack.push(outputs, "int32_t");
                             break;
                         }
                         case Opcodes.ICONST_3: {
                             List<String> outputs = new ArrayList<>();
                             sourceMethod.actions.add(new LoadConstantAction(3, outputs));
-                            operandStack.push(outputs);
+                            operandStack.push(outputs, "int32_t");
                             break;
                         }
                         case Opcodes.ICONST_4: {
                             List<String> outputs = new ArrayList<>();
                             sourceMethod.actions.add(new LoadConstantAction(4, outputs));
-                            operandStack.push(outputs);
+                            operandStack.push(outputs, "int32_t");
                             break;
                         }
                         case Opcodes.ICONST_5: {
                             List<String> outputs = new ArrayList<>();
                             sourceMethod.actions.add(new LoadConstantAction(5, outputs));
-                            operandStack.push(outputs);
+                            operandStack.push(outputs, "int32_t");
                             break;
                         }
                         case Opcodes.PUTSTATIC: {
@@ -150,12 +159,23 @@ public class SourceFileCompiler {
                                     .add(new Pair<String, String>("int32_t", returnVariable));
                             break;
                         }
+                        case Opcodes.ASTORE: {
+                            VarInsnNode variableInstruction = (VarInsnNode) instruction;
+                            String inputVariable = getTmpVariableName(sourceMethod.variables);
+                            sourceMethod.actions.add(new StoreAction(inputVariable,
+                                    List.of(localVariables.get(variableInstruction.var).name)));
+                            String inputVariableType = operandStack.pop(inputVariable);
+                            sourceMethod.variables.add(
+                                    new Pair<String, String>(inputVariableType, inputVariable));
+                            break;
+                        }
                         case Opcodes.ALOAD: {
                             VarInsnNode variableInstruction = (VarInsnNode) instruction;
                             List<String> outputs = new ArrayList<>();
                             sourceMethod.actions.add(new LoadLocalAction(
                                     localVariables.get(variableInstruction.var).name, outputs));
-                            operandStack.push(outputs);
+                            operandStack.push(outputs, TypeHelper.getCStyleTypeName(
+                                    localVariables.get(variableInstruction.var).desc));
                             break;
                         }
                         case Opcodes.INVOKESPECIAL: {
@@ -182,11 +202,83 @@ public class SourceFileCompiler {
                                 operandStack.pop(inputVariables.get(j).b());
                             }
                             if (Type.getReturnType(methodInstruction.desc).getSort() != Type.VOID) {
-                                operandStack.push(outputs);
+                                operandStack.push(outputs, TypeHelper.getCStyleTypeName(Type
+                                        .getReturnType(methodInstruction.desc).getDescriptor()));
                             }
                             break;
                         }
+                        case Opcodes.ISTORE: {
+                            VarInsnNode variableInstruction = (VarInsnNode) instruction;
+                            String inputVariable = getTmpVariableName(sourceMethod.variables);
+                            sourceMethod.actions.add(new StoreAction(inputVariable,
+                                    List.of(localVariables.get(variableInstruction.var).name)));
+                            sourceMethod.variables
+                                    .add(new Pair<String, String>("int8_t", inputVariable));
+                            operandStack.pop(inputVariable);
+                            break;
+                        }
+                        case Opcodes.ILOAD: {
+                            VarInsnNode variableInstruction = (VarInsnNode) instruction;
+                            List<String> outputs = new ArrayList<>();
+                            sourceMethod.actions.add(new StoreAction(
+                                    localVariables.get(variableInstruction.var).name, outputs));
+                            operandStack.push(outputs, TypeHelper.getCStyleTypeName(
+                                    localVariables.get(variableInstruction.var).desc));
+                            break;
+                        }
+                        case Opcodes.CALOAD:
+                        case Opcodes.AALOAD: {
+                            String arrayVariable =
+                                    getTmpVariableName(sourceMethod.variables) + "_array";
+                            String indexVariable =
+                                    getTmpVariableName(sourceMethod.variables) + "_index";
+                            List<String> outputs = new ArrayList<>();
+                            sourceMethod.actions.add(
+                                    new ArrayIndexAction(arrayVariable, indexVariable, outputs));
+                            String indexType = operandStack.pop(indexVariable);
+                            String arrayType = operandStack.pop(arrayVariable);
+                            operandStack.push(outputs, TypeHelper.removeDimensionCStyle(arrayType));
+                            sourceMethod.variables
+                                    .add(new Pair<String, String>(arrayType, arrayVariable));
+                            sourceMethod.variables
+                                    .add(new Pair<String, String>(indexType, indexVariable));
+                            break;
+                        }
+                        case Opcodes.IFNE: {
+                            JumpInsnNode jumpInstruction = (JumpInsnNode) instruction;
+                            String inputVariable = getTmpVariableName(sourceMethod.variables);
+                            sourceMethod.actions.add(new CompareAction(inputVariable, "!=", "0",
+                                    getOrCreateLabelName(numLabels, labelNames,
+                                            jumpInstruction.label.getLabel())));
+                            String inputVariableType = operandStack.pop(inputVariable);
+                            sourceMethod.variables.add(
+                                    new Pair<String, String>(inputVariableType, inputVariable));
+                            break;
+                        }
+                        case Opcodes.IF_ICMPLT: {
+                            JumpInsnNode jumpInstruction = (JumpInsnNode) instruction;
+                            String variableA = getTmpVariableName(sourceMethod.variables) + "_a";
+                            String variableB = getTmpVariableName(sourceMethod.variables) + "_b";
+                            sourceMethod.actions.add(new CompareAction(variableA, "<", variableB,
+                                    getOrCreateLabelName(numLabels, labelNames,
+                                            jumpInstruction.label.getLabel())));
+                            String variableBType = operandStack.pop(variableB);
+                            String variableAType = operandStack.pop(variableA);
+                            sourceMethod.variables
+                                    .add(new Pair<String, String>(variableAType, variableA));
+                            sourceMethod.variables
+                                    .add(new Pair<String, String>(variableBType, variableB));
+                            break;
+                        }
+                        case Opcodes.IINC: {
+                            IincInsnNode incrementInstruction = (IincInsnNode) instruction;
+                            sourceMethod.actions.add(new TransformAction(
+                                    localVariables.get(incrementInstruction.var).name, "+",
+                                    Integer.toString(incrementInstruction.incr)));
+                            break;
+                        }
                         default:
+                            System.out.println(sourceMethod);
                             throw new IllegalArgumentException(
                                     String.format("Unknown opcode %d of instruction type %s",
                                             instruction.getOpcode(),

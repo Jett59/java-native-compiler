@@ -76,4 +76,12 @@ public class TypeHelper {
         }
         return result.toString();
     }
+
+    public static String removeDimensionCStyle(String arrayType) {
+        if (arrayType.endsWith("*")) {
+            return arrayType.substring(0, arrayType.length() - 1);
+        } else {
+            throw new IllegalArgumentException("Type " + arrayType + " is not an array");
+        }
+    }
 }

@@ -29,7 +29,8 @@ import app.cleancode.TypeHelper;
 
 public class SourceFileCompiler {
     public static SourceFile getSourceFile(ClassNode classNode) {
-        SourceFile sourceFile = new SourceFile();
+        SourceFile sourceFile = new SourceFile(classNode.sourceFile);
+        sourceFile.dependentHeaders.add(classNode.name);
         classNode.methods.forEach(method -> {
             List<LocalVariableNode> localVariables =
                     method.localVariables == null ? new ArrayList<>() : method.localVariables;

@@ -20,7 +20,9 @@ public class Main {
             headerOutputFile.getParentFile().mkdirs();
             Files.write(headerOutputFile.toPath(), header.toString().getBytes());
             SourceFile sourceFile = SourceFileCompiler.getSourceFile(root);
-            System.out.println(sourceFile);
+            File sourceOutputFile = Paths.get(options.outputDirectory(), root.name + ".c").toFile();
+            sourceOutputFile.getParentFile().mkdirs();
+            Files.write(sourceOutputFile.toPath(), sourceFile.toString().getBytes());
         }
     }
 }

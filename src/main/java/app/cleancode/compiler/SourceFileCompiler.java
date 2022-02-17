@@ -1,6 +1,7 @@
 package app.cleancode.compiler;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,24 +29,16 @@ public class SourceFileCompiler {
     public static SourceFile getSourceFile(ClassNode classNode) {
         SourceFile sourceFile = new SourceFile();
         classNode.methods.forEach(method -> {
-            System.out.println("Doing method " + method.name);
             List<LocalVariableNode> localVariables =
                     method.localVariables == null ? new ArrayList<>() : method.localVariables;
             List<Pair<String, String>> methodParameters = new ArrayList<>();
             List<String> methodParameterTypes = ParameterHelper.getParameterTypeNames(
                     classNode.name, method.desc, (method.access & Opcodes.ACC_STATIC) == 0);
-            sourceFile.dependentHeaders.addAll(methodParameterTypes);
-            int i;
-            if ((method.access & Opcodes.ACC_STATIC) == 0) {
-                methodParameters.add(new Pair<String, String>(
-                        TypeHelper.getCStyleTypeName("L" + classNode.name + ";"), "this"));
-                i = 1;
-            } else {
-                i = 0;
-            }
-            for (int j = 0; i < methodParameterTypes.size(); i++, j++) {
-                methodParameters.add(
-                        new Pair<>(methodParameterTypes.get(i), method.parameters.get(j).name));
+            sourceFile.dependentHeaders.addAll(Arrays.stream(Type.getArgumentTypes(method.desc))
+                    .map(type -> type.getInternalName()).map(TypeHelper::getActualType).toList());
+            for (int i = 0; i < methodParameterTypes.size(); i++) {
+                methodParameters
+                        .add(new Pair<>(methodParameterTypes.get(i), localVariables.get(i).name));
             }
             SourceMethod sourceMethod = new SourceMethod(
                     TypeHelper.getCStyleTypeName(Type.getReturnType(method.desc).getDescriptor()),
@@ -88,10 +81,51 @@ public class SourceFileCompiler {
                             operandStack.push(ldcOutputs);
                             break;
                         }
+                        case Opcodes.ICONST_M1: {
+                            List<String> outputs = new ArrayList<>();
+                            sourceMethod.actions.add(new LoadConstantAction(-1, outputs));
+                            operandStack.push(outputs);
+                            break;
+                        }
+                        case Opcodes.ICONST_0: {
+                            List<String> outputs = new ArrayList<>();
+                            sourceMethod.actions.add(new LoadConstantAction(0, outputs));
+                            operandStack.push(outputs);
+                            break;
+                        }
+                        case Opcodes.ICONST_1: {
+                            List<String> outputs = new ArrayList<>();
+                            sourceMethod.actions.add(new LoadConstantAction(1, outputs));
+                            operandStack.push(outputs);
+                            break;
+                        }
+                        case Opcodes.ICONST_2: {
+                            List<String> outputs = new ArrayList<>();
+                            sourceMethod.actions.add(new LoadConstantAction(2, outputs));
+                            operandStack.push(outputs);
+                            break;
+                        }
+                        case Opcodes.ICONST_3: {
+                            List<String> outputs = new ArrayList<>();
+                            sourceMethod.actions.add(new LoadConstantAction(3, outputs));
+                            operandStack.push(outputs);
+                            break;
+                        }
+                        case Opcodes.ICONST_4: {
+                            List<String> outputs = new ArrayList<>();
+                            sourceMethod.actions.add(new LoadConstantAction(4, outputs));
+                            operandStack.push(outputs);
+                            break;
+                        }
+                        case Opcodes.ICONST_5: {
+                            List<String> outputs = new ArrayList<>();
+                            sourceMethod.actions.add(new LoadConstantAction(5, outputs));
+                            operandStack.push(outputs);
+                            break;
+                        }
                         case Opcodes.PUTSTATIC: {
                             FieldInsnNode fieldInstruction = (FieldInsnNode) instruction;
-                            sourceFile.dependentHeaders
-                                    .add(TypeHelper.getActualType(fieldInstruction.desc));
+                            sourceFile.dependentHeaders.add(fieldInstruction.owner);
                             String sourceVariable = getTmpVariableName(sourceMethod.variables);
                             sourceMethod.actions.add(
                                     new PutAction(sourceVariable, NameMangler.mangle(classNode.name,
@@ -100,10 +134,20 @@ public class SourceFileCompiler {
                             sourceMethod.variables.add(
                                     new Pair<>(TypeHelper.getCStyleTypeName(fieldInstruction.desc),
                                             sourceVariable));
+                            sourceFile.dependentHeaders
+                                    .add(TypeHelper.getActualType(fieldInstruction.desc));
                             break;
                         }
                         case Opcodes.RETURN: {
                             sourceMethod.actions.add(new ArglessReturnAction());
+                            break;
+                        }
+                        case Opcodes.IRETURN: {
+                            String returnVariable = getTmpVariableName(sourceMethod.variables);
+                            sourceMethod.actions.add(new ReturnAction(returnVariable));
+                            operandStack.pop(returnVariable);
+                            sourceMethod.variables
+                                    .add(new Pair<String, String>("int32_t", returnVariable));
                             break;
                         }
                         case Opcodes.ALOAD: {
@@ -116,6 +160,10 @@ public class SourceFileCompiler {
                         }
                         case Opcodes.INVOKESPECIAL: {
                             MethodInsnNode methodInstruction = (MethodInsnNode) instruction;
+                            Arrays.stream(Type.getArgumentTypes(methodInstruction.desc))
+                                    .map(Type::getDescriptor).map(TypeHelper::getActualType)
+                                    .forEach(type -> sourceFile.dependentHeaders.add(type));
+                            sourceFile.dependentHeaders.add(methodInstruction.owner);
                             List<String> parameterTypes = ParameterHelper.getParameterTypeNames(
                                     methodInstruction.owner, methodInstruction.desc,
                                     (method.access & Opcodes.ACC_STATIC) == 0);
@@ -146,7 +194,6 @@ public class SourceFileCompiler {
                     }
                 }
             }
-            System.out.println(sourceMethod);
             sourceFile.methods.add(sourceMethod);
         });
         return sourceFile;

@@ -263,6 +263,25 @@ public class SourceFileCompiler {
                             sourceMethod.actions.add(new CompareAction(variableA, "<", variableB,
                                     getOrCreateLabelName(numLabels, labelNames,
                                             jumpInstruction.label.getLabel())));
+                            labelOperandStacks.get(labelNames.get(jumpInstruction.label.getLabel()))
+                                    .addPossibility(operandStack.possibilityCopy());
+                            String variableBType = operandStack.pop(variableB);
+                            String variableAType = operandStack.pop(variableA);
+                            sourceMethod.variables
+                                    .add(new Pair<String, String>(variableAType, variableA));
+                            sourceMethod.variables
+                                    .add(new Pair<String, String>(variableBType, variableB));
+                            break;
+                        }
+                        case Opcodes.IF_ICMPGE: {
+                            JumpInsnNode jumpInstruction = (JumpInsnNode) instruction;
+                            String variableA = getTmpVariableName(sourceMethod.variables) + "_a";
+                            String variableB = getTmpVariableName(sourceMethod.variables) + "_b";
+                            sourceMethod.actions.add(new CompareAction(variableA, ">=", variableB,
+                                    getOrCreateLabelName(numLabels, labelNames,
+                                            jumpInstruction.label.getLabel())));
+                            labelOperandStacks.get(labelNames.get(jumpInstruction.label.getLabel()))
+                                    .addPossibility(operandStack.possibilityCopy());
                             String variableBType = operandStack.pop(variableB);
                             String variableAType = operandStack.pop(variableA);
                             sourceMethod.variables

@@ -34,6 +34,7 @@ public class SourceFileCompiler {
         classNode.methods.forEach(method -> {
             List<LocalVariableNode> localVariables =
                     method.localVariables == null ? new ArrayList<>() : method.localVariables;
+            localVariables.sort((a, b) -> a.index - b.index);
             List<Pair<String, String>> methodParameters = new ArrayList<>();
             List<String> methodParameterTypes = ParameterHelper.getParameterTypeNames(
                     classNode.name, method.desc, (method.access & Opcodes.ACC_STATIC) == 0);

@@ -76,4 +76,9 @@ public class OperandStack {
                 new OperandStack(newOutputs, new ArrayList<>(nextPossibilities));
         return newOperandStack;
     }
+
+    @Override
+    public String toString() {
+        return String.format("Stack: %s,\nPossibilities: %s", outputs, nextPossibilities);
+    }
 }

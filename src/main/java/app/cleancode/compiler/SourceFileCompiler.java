@@ -280,8 +280,10 @@ public class SourceFileCompiler {
                             sourceMethod.actions.add(new CompareAction(variableA, ">=", variableB,
                                     getOrCreateLabelName(numLabels, labelNames,
                                             jumpInstruction.label.getLabel())));
-                            labelOperandStacks.get(labelNames.get(jumpInstruction.label.getLabel()))
-                                    .addPossibility(operandStack.possibilityCopy());
+                            getOrCreateOperandStack(
+                                    labelNames.get(jumpInstruction.label.getLabel()),
+                                    labelOperandStacks)
+                                            .addPossibility(operandStack.possibilityCopy());
                             String variableBType = operandStack.pop(variableB);
                             String variableAType = operandStack.pop(variableA);
                             sourceMethod.variables
